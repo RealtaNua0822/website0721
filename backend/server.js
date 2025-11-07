@@ -75,9 +75,13 @@ function getUTCP8Time() {
 
 // 格式化时间为 UTC+8 的本地字符串
 function formatUTCP8Time(dateString) {
-    const date = new Date(dateString);
-    const utc8 = new Date(date.getTime() + (8 * 60 * 60 * 1000));
-    return utc8.toLocaleString('zh-CN');
+    try {
+        const date = new Date(dateString);
+        const utc8 = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+        return utc8.toLocaleString('zh-CN');
+    } catch (e) {
+        return '时间未知';
+    }
 }
 
 // API路由
@@ -204,7 +208,7 @@ app.post('/api/message', (req, res) => {
                 data: {
                     id: this.lastID,
                     identity: identity,
-                    nickname: identity, // 添加昵称字段
+                    nickname: identity,
                     content,
                     isSeed,
                     created_at: getUTCP8Time(),
@@ -266,7 +270,7 @@ app.post('/api/clipboard', (req, res) => {
                 data: {
                     id: this.lastID,
                     identity: identity,
-                    nickname: identity, // 添加昵称字段
+                    nickname: identity,
                     content,
                     hasPassword: !!password,
                     created_at: getUTCP8Time(),
