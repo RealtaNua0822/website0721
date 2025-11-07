@@ -33,6 +33,7 @@ function initDatabase() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id TEXT NOT NULL,
             tool TEXT NOT NULL,
+            assistant_material TEXT NOT NULL,
             amount REAL NOT NULL,
             activity_date DATE NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -66,9 +67,9 @@ function initDatabase() {
 
 // API路由
 app.post('/api/activity', (req, res) => {
-    const { identity, tool, amount } = req.body;
+    const { identity, tool, assistantMaterial, amount } = req.body;
     
-    if (!identity || !tool || !amount) {
+    if (!identity || !tool || !assistantMaterial || !amount) {
         return res.json({ success: false, error: '缺少必要参数' });
     }
 
@@ -76,15 +77,15 @@ app.post('/api/activity', (req, res) => {
     
     // 确保用户存在
     const userQuery = 'INSERT OR IGNORE INTO website0721_users (id, nickname) VALUES (?, ?)';
-    db.run(userQuery, [identity, identity.split('#')[0]], function(err) {
+    db.run(userQuery, [identity, identity], function(err) {
         if (err) {
             console.error('保存用户失败:', err);
             return res.json({ success: false, error: '保存失败' });
         }
 
         // 保存活动记录
-        const activityQuery = 'INSERT INTO website0721_activities (user_id, tool, amount, activity_date) VALUES (?, ?, ?, ?)';
-        db.run(activityQuery, [identity, tool, amount, activityDate], function(err) {
+        const activityQuery = 'INSERT INTO website0721_activities (user_id, tool, assistant_material, amount, activity_date) VALUES (?, ?, ?, ?, ?)';
+        db.run(activityQuery, [identity, tool, assistantMaterial, amount, activityDate], function(err) {
             if (err) {
                 console.error('保存活动记录失败:', err);
                 return res.json({ success: false, error: '保存失败' });
@@ -96,8 +97,10 @@ app.post('/api/activity', (req, res) => {
                     id: this.lastID,
                     identity,
                     tool,
+                    assistantMaterial,
                     amount: parseFloat(amount),
-                    date: new Date().toISOString()
+                    date: new Date().toISOString(),
+                    created_at: new Date().toISOString()
                 }
             });
         });
@@ -128,7 +131,7 @@ app.post('/api/message', (req, res) => {
     
     // 确保用户存在
     const userQuery = 'INSERT OR IGNORE INTO website0721_users (id, nickname) VALUES (?, ?)';
-    db.run(userQuery, [identity, identity.split('#')[0]], function(err) {
+    db.run(userQuery, [identity, identity], function(err) {
         if (err) {
             console.error('保存用户失败:', err);
             return res.json({ success: false, error: '保存失败' });
@@ -146,10 +149,10 @@ app.post('/api/message', (req, res) => {
                 success: true, 
                 data: {
                     id: this.lastID,
-                    identity: maskIdentity(identity),
+                    identity: identity, // 不再打码
                     content,
                     isSeed,
-                    date: new Date().toISOString()
+                    created_at: new Date().toISOString()
                 }
             });
         });
@@ -164,12 +167,7 @@ app.get('/api/messages', (req, res) => {
             return res.json({ success: false, error: '查询失败' });
         }
         
-        const maskedResults = results.map(msg => ({
-            ...msg,
-            identity: maskIdentity(msg.user_id)
-        }));
-        
-        res.json({ success: true, data: maskedResults });
+        res.json({ success: true, data: results });
     });
 });
 
@@ -182,7 +180,7 @@ app.post('/api/clipboard', (req, res) => {
 
     // 确保用户存在
     const userQuery = 'INSERT OR IGNORE INTO website0721_users (id, nickname) VALUES (?, ?)';
-    db.run(userQuery, [identity, identity.split('#')[0]], function(err) {
+    db.run(userQuery, [identity, identity], function(err) {
         if (err) {
             console.error('保存用户失败:', err);
             return res.json({ success: false, error: '保存失败' });
@@ -200,10 +198,10 @@ app.post('/api/clipboard', (req, res) => {
                 success: true, 
                 data: {
                     id: this.lastID,
-                    identity: maskIdentity(identity),
+                    identity: identity, // 不再打码
                     content,
                     hasPassword: !!password,
-                    date: new Date().toISOString()
+                    created_at: new Date().toISOString()
                 }
             });
         });
@@ -218,27 +216,9 @@ app.get('/api/clipboards', (req, res) => {
             return res.json({ success: false, error: '查询失败' });
         }
         
-        const maskedResults = results.map(item => ({
-            ...item,
-            identity: maskIdentity(item.user_id)
-        }));
-        
-        res.json({ success: true, data: maskedResults });
+        res.json({ success: true, data: results });
     });
 });
-
-// 身份打码函数
-function maskIdentity(identity) {
-    const parts = identity.split('#');
-    if (parts.length === 2) {
-        const name = parts[0];
-        const maskedName = name.length > 2 ? 
-            name.charAt(0) + '*'.repeat(name.length - 2) + name.charAt(name.length - 1) : 
-            name.charAt(0) + '*';
-        return `${maskedName}#${parts[1]}`;
-    }
-    return identity;
-}
 
 // 启动服务器
 app.listen(PORT, () => {

@@ -166,7 +166,7 @@
         
         .message-header, .clipboard-header {
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 8px;
         }
@@ -235,7 +235,7 @@
                 <label for="nickname">创建你的专属身份</label>
                 <input type="text" id="nickname" class="form-control" 
                        placeholder="请输入你的昵称（2-20个字符）" maxlength="20">
-                <small style="color: #666; font-size: 0.9rem;">昵称将作为你的唯一标识的一部分</small>
+                <small style="color: #666; font-size: 0.9rem;">直接使用昵称作为身份标识</small>
             </div>
             
             <button class="btn" onclick="createIdentity()">
@@ -260,7 +260,7 @@
                 <div class="form-group">
                     <label>已有身份？在此输入</label>
                     <input type="text" id="existingIdentity" class="form-control" 
-                           placeholder="格式：昵称#12345">
+                           placeholder="请输入你的昵称">
                 </div>
                 <button class="btn" onclick="useExistingIdentity()" 
                         style="background: #17a2b8;">
@@ -289,26 +289,23 @@
                     <label for="toolUsed">辅助工具</label>
                     <select id="toolUsed" class="form-control">
                         <option value="">请选择使用的工具</option>
-                        <option value="tool_a">🛠️ 工具A - 标准版</option>
-                        <option value="tool_b">⚡ 工具B - 高效版</option>
-                        <option value="tool_c">🔧 工具C - 专业版</option>
-                        <option value="tool_d">🎯 工具D - 定制版</option>
-                        <option value="custom">✏️ 自定义工具</option>
+                        <option value="硅🍼">硅🍼</option>
+                        <option value="肉🥭">肉🥭</option>
+                        <option value="手👌">手👌</option>
                     </select>
                 </div>
                 
-                <div id="customToolGroup" style="display: none;">
-                    <div class="form-group">
-                        <label for="customTool">自定义工具名称</label>
-                        <input type="text" id="customTool" class="form-control" 
-                               placeholder="请输入工具名称">
-                    </div>
+                <div class="form-group">
+                    <label for="assistantMaterial">辅助资料</label>
+                    <input type="text" id="assistantMaterial" class="form-control" 
+                           placeholder="请输入使用的辅助资料">
                 </div>
                 
                 <div class="form-group">
-                    <label for="resultAmount">成果数量</label>
+                    <label for="resultAmount">成果数量 (ml)</label>
                     <input type="number" id="resultAmount" class="form-control" 
                            placeholder="请输入本次活动的成果数量" min="0" step="0.01">
+                    <small style="color: #666; font-size: 0.9rem;">单位：毫升 (ml)</small>
                 </div>
                 
                 <button class="btn" onclick="submitActivity()" 
@@ -331,11 +328,11 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="todayAmount">0</div>
-                    <div class="stat-label">今日总成果</div>
+                    <div class="stat-label">今日总成果 (ml)</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="avgAmount">0</div>
-                    <div class="stat-label">平均每次成果</div>
+                    <div class="stat-label">平均每次成果 (ml)</div>
                 </div>
             </div>
         </div>
@@ -379,6 +376,7 @@
     <script>
         // API基础URL
         const API_BASE = '/api';
+
         // 页面加载时执行
         document.addEventListener('DOMContentLoaded', function() {
             // 检查本地是否有保存的身份
@@ -386,12 +384,6 @@
             if (savedIdentity) {
                 setCurrentIdentity(savedIdentity);
             }
-            
-            // 工具选择变化事件
-            document.getElementById('toolUsed').addEventListener('change', function() {
-                const customToolGroup = document.getElementById('customToolGroup');
-                customToolGroup.style.display = this.value === 'custom' ? 'block' : 'none';
-            });
             
             // 更新今日统计
             updateTodayStats();
@@ -471,9 +463,8 @@
                 return;
             }
             
-            // 生成5位随机数字
-            const randomNum = Math.random().toString().slice(2, 7);
-            const fullIdentity = `${nickname}#${randomNum}`;
+            // 直接使用昵称作为身份，不添加随机数字
+            const fullIdentity = nickname;
             
             // 显示身份信息
             document.getElementById('displayIdentity').textContent = fullIdentity;
@@ -486,7 +477,6 @@
             localStorage.setItem('currentIdentity', fullIdentity);
             localStorage.setItem('identity_' + fullIdentity, JSON.stringify({
                 displayName: nickname,
-                userHash: randomNum,
                 created: new Date().toISOString()
             }));
             
@@ -499,12 +489,6 @@
             
             if (!identityInput) {
                 showMessage('请输入身份信息', 'error');
-                return;
-            }
-            
-            // 简单验证身份格式：昵称#数字
-            if (!identityInput.match(/^.+#\d{5}$/)) {
-                showMessage('身份格式不正确，应为：昵称#12345', 'error');
                 return;
             }
             
@@ -523,12 +507,38 @@
             document.getElementById('existingIdentity').value = '';
         }
         
-        // 复制身份信息
+        // 复制身份信息 - 修复版
         function copyIdentity() {
             const identity = document.getElementById('displayIdentity').textContent;
-            navigator.clipboard.writeText(identity).then(() => {
+            // 使用现代剪贴板API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(identity).then(() => {
+                    showMessage('身份信息已复制到剪贴板', 'success');
+                }).catch(err => {
+                    // 如果现代API失败，使用传统方法
+                    copyToClipboardFallback(identity);
+                });
+            } else {
+                // 传统方法
+                copyToClipboardFallback(identity);
+            }
+        }
+
+        // 传统剪贴板复制方法
+        function copyToClipboardFallback(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
                 showMessage('身份信息已复制到剪贴板', 'success');
-            });
+            } catch (err) {
+                showMessage('复制失败，请手动复制', 'error');
+            }
+            document.body.removeChild(textArea);
         }
         
         // 提交活动记录
@@ -540,18 +550,14 @@
             }
             
             const toolUsed = document.getElementById('toolUsed').value;
-            let finalTool = toolUsed;
-            
-            if (toolUsed === 'custom') {
-                finalTool = document.getElementById('customTool').value.trim();
-                if (!finalTool) {
-                    showMessage('请输入自定义工具名称', 'error', 'submitResult');
-                    return;
-                }
-            }
-            
             if (!toolUsed) {
                 showMessage('请选择辅助工具', 'error', 'submitResult');
+                return;
+            }
+            
+            const assistantMaterial = document.getElementById('assistantMaterial').value.trim();
+            if (!assistantMaterial) {
+                showMessage('请输入辅助资料', 'error', 'submitResult');
                 return;
             }
             
@@ -564,7 +570,8 @@
             // 提交到服务器
             const result = await submitActivityToServer({
                 identity: currentIdentity,
-                tool: finalTool,
+                tool: toolUsed,
+                assistantMaterial: assistantMaterial,
                 amount: parseFloat(resultAmount)
             });
             
@@ -580,8 +587,9 @@
                         border: 1px solid #c3e6cb;">
                         <h4>✅ 记录提交成功！</h4>
                         <p><strong>身份：</strong>${currentIdentity}</p>
-                        <p><strong>工具：</strong>${finalTool}</p>
-                        <p><strong>成果数量：</strong>${resultAmount}</p>
+                        <p><strong>工具：</strong>${toolUsed}</p>
+                        <p><strong>辅助资料：</strong>${assistantMaterial}</p>
+                        <p><strong>成果数量：</strong>${resultAmount} ml</p>
                         <p><strong>时间：</strong>${new Date().toLocaleString()}</p>
                     </div>
                 `;
@@ -592,9 +600,8 @@
                 
                 // 清空表单
                 document.getElementById('toolUsed').value = '';
-                document.getElementById('customTool').value = '';
+                document.getElementById('assistantMaterial').value = '';
                 document.getElementById('resultAmount').value = '';
-                document.getElementById('customToolGroup').style.display = 'none';
                 
                 // 更新统计
                 updateTodayStats();
@@ -655,7 +662,7 @@
             }
         }
 
-        // 加载留言列表
+        // 加载留言列表 - 修复时间显示
         async function loadMessages() {
             const result = await getMessages();
             
@@ -667,16 +674,25 @@
                     return;
                 }
                 
-                messageList.innerHTML = result.data.map(message => `
+                messageList.innerHTML = result.data.map(message => {
+                    // 修复时间显示
+                    let displayTime;
+                    try {
+                        displayTime = new Date(message.created_at || message.date).toLocaleString();
+                    } catch (e) {
+                        displayTime = '时间未知';
+                    }
+                    
+                    return `
                     <div class="message-item">
                         <div class="message-header">
                             <span class="message-identity">${message.identity}</span>
                             ${message.isSeed ? '<span class="seed-badge">种子</span>' : ''}
-                            <span class="message-time">${new Date(message.date).toLocaleString()}</span>
+                            <span class="message-time">${displayTime}</span>
                         </div>
                         <div class="message-content">${message.content}</div>
                     </div>
-                `).join('');
+                `}).join('');
             } else {
                 document.getElementById('messageList').innerHTML = 
                     '<p style="color: #dc3545;">加载留言失败</p>';
@@ -711,7 +727,7 @@
             }
         }
 
-        // 加载剪贴板列表
+        // 加载剪贴板列表 - 修复时间显示
         async function loadClipboards() {
             const result = await getClipboards();
             
@@ -723,16 +739,25 @@
                     return;
                 }
                 
-                clipboardList.innerHTML = result.data.map(item => `
+                clipboardList.innerHTML = result.data.map(item => {
+                    // 修复时间显示
+                    let displayTime;
+                    try {
+                        displayTime = new Date(item.created_at || item.date).toLocaleString();
+                    } catch (e) {
+                        displayTime = '时间未知';
+                    }
+                    
+                    return `
                     <div class="clipboard-item">
                         <div class="clipboard-header">
                             <span class="clipboard-identity">${item.identity}</span>
                             ${item.hasPassword ? '<span class="password-badge">密码保护</span>' : ''}
-                            <span class="clipboard-time">${new Date(item.date).toLocaleString()}</span>
+                            <span class="clipboard-time">${displayTime}</span>
                         </div>
                         <div class="clipboard-content">${item.content}</div>
                     </div>
-                `).join('');
+                `}).join('');
             } else {
                 document.getElementById('clipboardList').innerHTML = 
                     '<p style="color: #dc3545;">加载剪贴板内容失败</p>';
