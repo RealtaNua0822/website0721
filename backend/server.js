@@ -279,7 +279,7 @@ function maskIdentity(identity) {
 // 启动服务器
 app.listen(PORT, () => {
     console.log(`🚀 website0721 服务器运行在 http://localhost:${PORT}`);
-    console.log(`💾 使用 SQLite 数据库: ${dbPath}`);
+    console.log(`💾 使用 SQLite 数据库:`);
 });
 
 // 优雅关闭
