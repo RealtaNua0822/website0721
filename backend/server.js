@@ -12,13 +12,24 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('../'));
 
-// SQLite 数据库连接
+/*SQLite 数据库连接
 const dbPath = path.join(__dirname, 'website0721.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('SQLite 连接失败:', err);
     } else {
         console.log('✅ 已连接到 SQLite 数据库');
+        initDatabase();
+    }
+});
+*/
+
+// 使用内存数据库（避免权限问题）
+const db = new sqlite3.Database(':memory:', (err) => {
+    if (err) {
+        console.error('SQLite 内存数据库连接失败:', err);
+    } else {
+        console.log('✅ 已连接到 SQLite 内存数据库');
         initDatabase();
     }
 });
