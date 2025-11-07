@@ -65,6 +65,21 @@ function initDatabase() {
     });
 }
 
+// 获取 UTC+8 时间
+function getUTCP8Time() {
+    const now = new Date();
+    // UTC+8 = UTC + 8小时
+    const utc8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    return utc8.toISOString();
+}
+
+// 格式化时间为 UTC+8 的本地字符串
+function formatUTCP8Time(dateString) {
+    const date = new Date(dateString);
+    const utc8 = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    return utc8.toLocaleString('zh-CN');
+}
+
 // API路由
 app.post('/api/activity', (req, res) => {
     const { identity, tool, assistantMaterial, amount } = req.body;
@@ -73,7 +88,7 @@ app.post('/api/activity', (req, res) => {
         return res.json({ success: false, error: '缺少必要参数' });
     }
 
-    const activityDate = new Date().toISOString().split('T')[0];
+    const activityDate = getUTCP8Time().split('T')[0];
     
     // 确保用户存在
     const userQuery = 'INSERT OR IGNORE INTO website0721_users (id, nickname) VALUES (?, ?)';
@@ -99,24 +114,63 @@ app.post('/api/activity', (req, res) => {
                     tool,
                     assistantMaterial,
                     amount: parseFloat(amount),
-                    date: new Date().toISOString(),
-                    created_at: new Date().toISOString()
+                    date: getUTCP8Time(),
+                    created_at: getUTCP8Time()
                 }
             });
         });
     });
 });
 
+// 获取用户个人活动记录
 app.get('/api/activities/:identity', (req, res) => {
     const { identity } = req.params;
     
-    const query = 'SELECT * FROM website0721_activities WHERE user_id = ? ORDER BY created_at DESC';
+    const query = `
+        SELECT a.*, u.nickname 
+        FROM website0721_activities a 
+        LEFT JOIN website0721_users u ON a.user_id = u.id 
+        WHERE a.user_id = ? 
+        ORDER BY a.created_at DESC
+    `;
     db.all(query, [identity], (err, results) => {
         if (err) {
             console.error('查询活动记录失败:', err);
             return res.json({ success: false, error: '查询失败' });
         }
-        res.json({ success: true, data: results });
+        
+        // 格式化时间为 UTC+8
+        const formattedResults = results.map(activity => ({
+            ...activity,
+            display_time: formatUTCP8Time(activity.created_at)
+        }));
+        
+        res.json({ success: true, data: formattedResults });
+    });
+});
+
+// 获取所有用户的公开活动记录
+app.get('/api/activities', (req, res) => {
+    const query = `
+        SELECT a.*, u.nickname 
+        FROM website0721_activities a 
+        LEFT JOIN website0721_users u ON a.user_id = u.id 
+        ORDER BY a.created_at DESC 
+        LIMIT 50
+    `;
+    db.all(query, [], (err, results) => {
+        if (err) {
+            console.error('查询公开活动记录失败:', err);
+            return res.json({ success: false, error: '查询失败' });
+        }
+        
+        // 格式化时间为 UTC+8
+        const formattedResults = results.map(activity => ({
+            ...activity,
+            display_time: formatUTCP8Time(activity.created_at)
+        }));
+        
+        res.json({ success: true, data: formattedResults });
     });
 });
 
@@ -149,10 +203,12 @@ app.post('/api/message', (req, res) => {
                 success: true, 
                 data: {
                     id: this.lastID,
-                    identity: identity, // 不再打码
+                    identity: identity,
+                    nickname: identity, // 添加昵称字段
                     content,
                     isSeed,
-                    created_at: new Date().toISOString()
+                    created_at: getUTCP8Time(),
+                    display_time: formatUTCP8Time(getUTCP8Time())
                 }
             });
         });
@@ -160,14 +216,25 @@ app.post('/api/message', (req, res) => {
 });
 
 app.get('/api/messages', (req, res) => {
-    const query = 'SELECT * FROM website0721_messages ORDER BY created_at DESC';
+    const query = `
+        SELECT m.*, u.nickname 
+        FROM website0721_messages m 
+        LEFT JOIN website0721_users u ON m.user_id = u.id 
+        ORDER BY m.created_at DESC
+    `;
     db.all(query, [], (err, results) => {
         if (err) {
             console.error('查询留言失败:', err);
             return res.json({ success: false, error: '查询失败' });
         }
         
-        res.json({ success: true, data: results });
+        // 格式化时间为 UTC+8
+        const formattedResults = results.map(message => ({
+            ...message,
+            display_time: formatUTCP8Time(message.created_at)
+        }));
+        
+        res.json({ success: true, data: formattedResults });
     });
 });
 
@@ -198,10 +265,12 @@ app.post('/api/clipboard', (req, res) => {
                 success: true, 
                 data: {
                     id: this.lastID,
-                    identity: identity, // 不再打码
+                    identity: identity,
+                    nickname: identity, // 添加昵称字段
                     content,
                     hasPassword: !!password,
-                    created_at: new Date().toISOString()
+                    created_at: getUTCP8Time(),
+                    display_time: formatUTCP8Time(getUTCP8Time())
                 }
             });
         });
@@ -209,14 +278,25 @@ app.post('/api/clipboard', (req, res) => {
 });
 
 app.get('/api/clipboards', (req, res) => {
-    const query = 'SELECT * FROM website0721_clipboards ORDER BY created_at DESC';
+    const query = `
+        SELECT c.*, u.nickname 
+        FROM website0721_clipboards c 
+        LEFT JOIN website0721_users u ON c.user_id = u.id 
+        ORDER BY c.created_at DESC
+    `;
     db.all(query, [], (err, results) => {
         if (err) {
             console.error('查询剪贴板失败:', err);
             return res.json({ success: false, error: '查询失败' });
         }
         
-        res.json({ success: true, data: results });
+        // 格式化时间为 UTC+8
+        const formattedResults = results.map(item => ({
+            ...item,
+            display_time: formatUTCP8Time(item.created_at)
+        }));
+        
+        res.json({ success: true, data: formattedResults });
     });
 });
 
@@ -224,6 +304,7 @@ app.get('/api/clipboards', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 website0721 服务器运行在 http://localhost:${PORT}`);
     console.log('💾 使用 SQLite 内存数据库');
+    console.log('⏰ 使用 UTC+8 时区');
 });
 
 process.on('SIGINT', () => {
